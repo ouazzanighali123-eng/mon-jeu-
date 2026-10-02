@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu Floupi Bird</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+        canvas {
+            background-color: #70c5ce;
+            border: 4px solid #fff;
+            border-radius: 10px;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="info">
+        <h2>Floupi Bird</h2>
+        <p>Appuyez sur la **Barre d'espace** ou **Cliquez** pour sauter</p>
+    </div>
+
+    <canvas id="gameCanvas" width="400" height="500"></canvas>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Paramètres du jeu
+        let birdY = 250;
+        let birdX = 50;
+        let gravity = 0.4;
+        let velocity = 0;
+        let jump = -7;
+        let score = 0;
+        let gameOver = false;
+
+        // Tuyaux
+        let pipes = [];
+        let pipeWidth = 60;
+        let pipeGap = 120;
+        let pipeSpeed = 2;
+        let frameCount = 0;
+
+        function resetGame() {
+            birdY = 250;
+            velocity = 0;
+            pipes = [];
+            score = 0;
+            gameOver = false;
+            frameCount = 0;
+        }
+
+        // Gestion des sauts
+        function makeJump() {
+            if (gameOver) {
+                resetGame();
+            } else {
+                velocity = jump;
+            }
+        }
+
+        window.addEventListener("keydown", (e) => {
+            if (e.code === "Space") makeJump();
+        });
+        canvas.addEventListener("click", makeJump);
+
+        function update() {
+            if (gameOver) return;
+
+            // Physique de l'oiseau
+            velocity += gravity;
+            birdY += velocity;
+
+            // Collision avec le sol ou le plafond
+            if (birdY > canvas.height || birdY < 0) {
+                gameOver = true;
+            }
+
+            // Génération des tuyaux
+            if (frameCount % 100 === 0) {
+                let minHeight = 50;
+                let maxHeight = canvas.height - pipeGap - minHeight;
+                let height = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+                
+                pipes.push({
+                    x: canvas.width,
+                    top: height,
+                    bottom: canvas.height - height - pipeGap,
+                    passed: false
+                });
+            }
+
+            // Déplacement et logique des tuyaux
+            for (let i = pipes.length - 1; i >= 0; i--) {
+                pipes[i].x -= pipeSpeed;
+
+                // Vérifier si l'oiseau passe le tuyau (Score)
+                if (!pipes[i].passed && pipes[i].x + pipeWidth < birdX) {
+                    score++;
+                    pipes[i].passed = true;
+                }
+
+                // Détection des collisions avec les tuyaux
+                if (
+                    birdX + 15 > pipes[i].x && 
+                    birdX - 15 < pipes[i].x + pipeWidth && 
+                    (birdY - 15 < pipes[i].top || birdY + 15 > canvas.height - pipes[i].bottom)
+                ) {
+                    gameOver = true;
+                }
+
+                // Supprimer les tuyaux hors écran
+                if (pipes[i].x + pipeWidth < 0) {
+                    pipes.splice(i, 1);
+                }
+            }
+
+            frameCount++;
+        }
+
+        function draw() {
+            // Effacer le canvas (Ciel)
+            ctx.fillStyle = "#70c5ce";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Dessiner l'oiseau (Floupi)
+            ctx.fillStyle = "#ffde17"; // Jaune
+            ctx.beginPath();
+            ctx.arc(birdX, birdY, 15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#000";
+            ctx.stroke();
+
+            // Dessiner les tuyaux
+            ctx.fillStyle = "#73bf2e"; // Vert
+            for (let i = 0; i < pipes.length; i++) {
+                // Tuyau du haut
+                ctx.fillRect(pipes[i].x, 0, pipeWidth, pipes[i].top);
+                ctx.strokeRect(pipes[i].x, 0, pipeWidth, pipes[i].top);
+
+                // Tuyau du bas
+                ctx.fillRect(pipes[i].x, canvas.height - pipes[i].bottom, pipeWidth, pipes[i].bottom);
+                ctx.strokeRect(pipes[i].x, canvas.height - pipes[i].bottom, pipeWidth, pipes[i].bottom);
+            }
+
+            // Dessiner le score
+            ctx.fillStyle = "white";
+            ctx.font = "30px Arial";
+            ctx.fillText("Score : " + score, 20, 45);
+
+            // Message Game Over
+            if (gameOver) {
+                ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = "white";
+                ctx.font = "30px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText("PARTIE TERMINÉE", canvas.width / 2, canvas.height / 2 - 20);
+                ctx.font = "20px Arial";
+                ctx.fillText("Cliquez pour rejouer", canvas.width / 2, canvas.height / 2 + 20);
+                ctx.textAlign = "left"; // Reset
+            }
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+</body>
+</html>
